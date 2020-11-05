@@ -1,0 +1,255 @@
+#include <iostream>
+#include <string>
+#include <ctime>
+#include <cstdlib>
+#include <iomanip>
+
+using namespace std;
+const int TAM_CODIGO = 4;
+
+typedef bool tArrayBooleano[TAM_CODIGO];
+enum tColor { ROJO, AZUL, VERDE, AMARILLO, MARRON, BLANCO, INCORRECTO };
+typedef tColor tCodigo[TAM_CODIGO];
+typedef tColor tArray[TAM_CODIGO];
+
+void cabecera();
+int menu();
+void llamadaMenu();
+bool admiteRepetido(int opcion);
+void cargarArrayHumano(tArray Humano);
+bool codigoCorrecto(int colocados);
+string codigo2string(const tCodigo codigo);
+tColor char2color(char letras);
+
+void codigoAleatorio(tCodigo codigo, bool admiteRepetidos);
+void compararCodigos(const tCodigo codigo, const tCodigo hipotesis, int& colocados, int& descolocados);
+
+int main() {
+	srand(time(NULL));
+	int cont = 0, opcion = 1;
+	tCodigo codigo, hipotesis;
+	bool admiteRepetidos, correcto;
+	cabecera();
+	opcion = menu();
+	while (opcion != 0) {
+		admiteRepetidos = admiteRepetido(opcion);
+		codigoAleatorio(codigo, admiteRepetidos);
+		do {
+			int colocados = 0, descolocados = 0;
+			cargarArrayHumano(hipotesis);
+			compararCodigos(codigo, hipotesis, colocados, descolocados);
+			cout << "Hay " << descolocados << " descolocados y " << colocados << " colocados " << endl;
+			correcto = codigoCorrecto(colocados);
+			cont++;
+		} while (!correcto);
+		cout << "Te ha costado " << cont << " intentos." << endl;
+		cont = 0;
+		opcion = menu();
+	}
+	cout << "Hasta la proxima";
+	return 0;
+}
+
+void cabecera()
+{
+	cout << setw(37) << "MASTERMIND" << endl;
+	cout << setw(37) << "==========" << endl;
+	cout << "Descubre el codigo secreto!En cada partida, pensare un codigo de" << endl;
+	cout << "colores que tendras que adivinar.En cada intento que hagas te " << endl;
+	cout << "dare pistas, diciendote cuantos colores de los que has dicho estan " << endl;
+	cout << "bien colocados, y cuantos no." << endl;
+	cout << "Averigua el codigo secreto en el menor numero posible de intentos! " << endl;
+}
+
+void llamadaMenu()
+{
+	cout << "1.Jugar con un codigo sin  colores repetidos  " << endl;
+	cout << "2.Jugar con un codigo con colores repetidos " << endl;
+	cout << "0. Salir " << endl;
+	cout << "Opcion: ";
+}
+
+int menu()
+{
+	int opcion;
+	llamadaMenu();
+	cin >> opcion;
+	while (opcion < 0 || opcion > 2)
+	{
+		cout << "opcion incorrecta. Prueba otra vez: ";
+		cin >> opcion;
+	}
+	return opcion;
+}
+
+bool admiteRepetido(int opcion)
+{
+	bool admiteRepetidos;
+	if (opcion == 1)
+	{
+		admiteRepetidos = false;
+	}
+	else if (opcion == 2)
+	{
+		admiteRepetidos = true;
+	}
+
+	return admiteRepetidos;
+}
+
+bool codigoCorrecto(int colocados)
+{
+	bool correcto;
+	if (colocados == TAM_CODIGO)
+		correcto = true;
+	else
+		correcto = false;
+	return correcto;
+}
+
+tColor char2color(char letra)
+{
+	tColor color;
+	tArray hipotesis;
+	switch (letra)
+	{
+	case 'R': case 'r':
+		color = ROJO;
+		break;
+	case 'Z': case 'z':
+		color = AZUL;
+		break;
+	case 'V': case 'v':
+		color = VERDE;
+		break;
+	case 'A': case 'a':
+		color = AMARILLO;
+		break;
+	case 'M': case 'm':
+		color = MARRON;
+		break;
+	case 'B': case 'b':
+		color = BLANCO;
+		break;
+	default:
+		color = INCORRECTO;
+		break;
+	}
+	
+	return color;
+}
+
+string codigo2string(tCodigo codigo)
+{
+	string salida = "";
+	for (int cont = 0; cont < TAM_CODIGO; cont++)
+	{
+		switch (codigo[cont])
+		{
+		case ROJO:
+			salida = salida + 'R';
+			break;
+		case AZUL:
+			salida = salida + 'Z';
+			break;
+		case VERDE:
+			salida = salida + 'V';
+			break;
+		case AMARILLO:
+			salida = salida + 'A';
+			break;
+		case MARRON:
+			salida = salida + 'M';
+			break;
+		case BLANCO:
+			salida = salida + 'B';
+			break;
+		default:
+			break;
+		}
+	}
+	return salida;
+}
+
+void codigoAleatorio(tCodigo codigo, bool admiteRepetidos)
+{
+	int num;
+	string maquina;
+	for (int cont = 0; cont < TAM_CODIGO; ++cont)
+	{
+		num = (rand() % 5);
+		codigo[cont] = tColor(num);
+		if (!admiteRepetidos && cont > 0)
+		{
+			int i = 0;
+			while (i < cont)
+			{
+				if (codigo[i] == num)
+				{
+					num = (rand() % 5);
+					i = -1;
+				}
+				i++;
+			}
+		}
+		codigo[cont] = tColor(num);
+	}
+	cout << "Info depuracion ";
+	maquina = codigo2string(codigo);
+	cout << maquina << endl;
+}
+
+void compararCodigos(const tCodigo codigo, const tCodigo hipotesis, int& colocados, int& descolocados)
+{
+	int cont = 0;
+	tArrayBooleano colocado = { false,false,false,false }, descolocado = { false,false,false,false };
+	for (int i = 0; i < TAM_CODIGO; i++) { //colocados
+		if ((hipotesis[i]) == (codigo[i])) {
+			colocado[i] = true;
+			colocados++;
+		}
+	}
+	while (cont <TAM_CODIGO) { // descolocados
+		for (int i = 0; i < TAM_CODIGO; i++) {
+			if ((hipotesis[cont]) == (codigo[i])) {
+				descolocado[i] = true;
+			}
+		}
+		cont++;
+	}
+	for (int ii = 0; ii < TAM_CODIGO; ii++) { // coincidencias
+		if (colocado[ii] != descolocado[ii]) {
+			descolocados++;
+		}
+	}
+}
+
+void cargarArrayHumano(tArray hipotesis)
+{
+	int longitud, i = 0;
+	char letras;
+	string jugada;
+	tColor color;
+	cout << "Introduce el codigo (palabra de 4 letras con alguna de R, Z, V, A, M, B.)";
+	cin >> jugada;
+	longitud = jugada.length();
+	while (longitud != 4) {
+		cout << "El codigo escrito es incorrecto. " << endl << "Introduce el codigo (palabra de 4 letras con alguna de R, Z, V, A, M, B.)";
+		cin >> jugada;
+		longitud = jugada.length();
+	}
+		letras = jugada.at(i);
+		color = char2color(letras);
+		hipotesis[i] = color;
+		i++;
+		while (i < jugada.length() && color!=INCORRECTO) {
+			letras = jugada.at(i);
+			color = char2color(letras);
+			hipotesis[i] = color;
+			i++;
+		}
+		if (color == INCORRECTO) {
+			cout << "El codigo escrito es incorrecto." << endl;
+			cargarArrayHumano(hipotesis);
+		}
+}
