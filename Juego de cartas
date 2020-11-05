@@ -1,0 +1,656 @@
+#include <iostream>
+#include <fstream>
+#include <string>
+#include <cstdlib>
+#include <ctime>
+
+using namespace std;
+
+const int HUMANO = 1;
+const int MAQUINA = 2;
+const int TAM_CARTAS_POR_APARECER = 8;
+const int TAM_MAX_BARAJA = 40;
+
+typedef int tCartasPorAparecer[TAM_CARTAS_POR_APARECER];
+typedef int tCartas[TAM_MAX_BARAJA];
+
+typedef struct {
+	int cont;
+	tCartas baraja;
+} tConjuntoCartas;
+
+void menu();
+void mostrarGanador(int ganador);
+
+//Version 1
+double modoA(ifstream & file, int numCartas);
+double equivalencias(int carta);
+bool cargarArchivo(ifstream &file);
+int generarMaxCartas(int limiteInferior, int limiteSuperior);
+int determinaGanador(double puntuacion_H, double puntuacion_M);
+double modoBhumano(ifstream & file, int numCartas);
+double modoBmaquina(ifstream & file, int numCartas, double puntosHumano);
+
+//Version 2
+void modoChumano(ifstream & file, tCartasPorAparecer cartas, double & puntos);
+void iniciarPorAparecer(tCartasPorAparecer & cartas);
+void modoCmaquina(ifstream & file, tCartasPorAparecer cartas, double puntosHumano, double & puntos);
+bool esProbablePasarse(double puntosMaquina, const tCartasPorAparecer cartas);
+
+//Version 3
+void inicializa(tConjuntoCartas & cartas);
+void sacar(tConjuntoCartas & cartas, int & carta);
+void incluir(tConjuntoCartas & cartas, int carta);
+void crearMazo(tConjuntoCartas & mazo);
+void modoDhumano(tConjuntoCartas & mazo, tCartasPorAparecer cartas, tConjuntoCartas & cartasHumano, double & puntos);
+void modoDmaquina(tConjuntoCartas & mazo, tCartasPorAparecer cartas, double puntosHumano, tConjuntoCartas & cartasMaquina, double & puntos);
+void barajar(tConjuntoCartas & cartas);
+void cargarMazo(tConjuntoCartas & cartas);
+void guardarResultado(int resultado, double puntosHumano, double puntosMaquina, tConjuntoCartas cartasHumano, tConjuntoCartas cartasMaquina, int partidasJugadas);
+
+int main()
+{
+	srand(time(NULL));
+	string nombre_fichero;
+	ifstream file;
+	tCartasPorAparecer cartas;
+	tConjuntoCartas baraja, cartasHumano, cartasMaquina;
+	int opcion, max_cartas = 0, resultado, n_partidas_jugadas = 0;
+	double puntosHumano, puntosMaquina;
+	do
+	{
+		menu();
+		cin >> opcion;
+		switch (opcion)
+		{
+		case 1:
+			if (!cargarArchivo(file))
+			{
+				cout << "No se ha cargado el fichero.";
+			}
+			else
+			{
+				max_cartas = generarMaxCartas(3, 5);
+
+				//Roba humano
+				cout << "Turno humano:" << endl;
+				puntosHumano = modoA(file, max_cartas);
+
+				if (puntosHumano <= 7.5)
+				{
+					//Roba maquina
+					cout << endl << "Turno maquina:" << endl;
+					puntosMaquina = modoA(file, max_cartas);
+
+					if (puntosMaquina <= 7.5)
+					{
+						resultado = determinaGanador(puntosHumano, puntosMaquina);
+					}
+					else resultado = HUMANO;
+				}
+				else resultado = MAQUINA;
+
+				mostrarGanador(resultado);
+			}
+			n_partidas_jugadas++;
+			break;
+		case 2:
+			if (!cargarArchivo(file))
+			{
+				cout << "No se ha cargado el fichero.";
+			}
+			else
+			{
+				max_cartas = generarMaxCartas(3, 5);
+
+				//Roba humano
+				cout << "Turno humano:" << endl;
+				puntosHumano = modoBhumano(file, max_cartas);
+
+				if (puntosHumano <= 7.5)
+				{
+					//Roba maquina
+					cout << endl << "Turno maquina:" << endl;
+					puntosMaquina = modoBmaquina(file, max_cartas, puntosHumano);
+
+					if (puntosMaquina <= 7.5)
+					{
+						resultado = determinaGanador(puntosHumano, puntosMaquina);
+					}
+					else resultado = HUMANO;
+				}
+				else resultado = MAQUINA;
+
+				mostrarGanador(resultado);
+			}
+			n_partidas_jugadas++;
+			break;
+		case 3:
+			if (!cargarArchivo(file))
+			{
+				cout << "No se ha cargado el fichero.";
+			}
+			else
+			{
+				iniciarPorAparecer(cartas);
+
+				//Roba humano
+				cout << "Turno humano:" << endl;
+				puntosHumano = 0;
+				modoChumano(file, cartas, puntosHumano);
+
+				if (puntosHumano <= 7.5)
+				{
+					//Roba maquina
+					cout << endl << "Turno maquina:" << endl;
+					puntosMaquina = 0;
+					modoCmaquina(file, cartas, puntosHumano, puntosMaquina);
+
+					if (puntosMaquina <= 7.5)
+					{
+						resultado = determinaGanador(puntosHumano, puntosMaquina);
+					}
+					else resultado = HUMANO;
+				}
+				else resultado = MAQUINA;
+
+				mostrarGanador(resultado);
+			}
+			n_partidas_jugadas++;
+			break;
+		case 4:
+			iniciarPorAparecer(cartas);
+			crearMazo(baraja);
+			inicializa(cartasHumano);
+			inicializa(cartasMaquina);
+			puntosHumano = 0;
+
+			//Roba humano
+			cout << "Turno humano:" << endl;
+			modoDhumano(baraja, cartas, cartasHumano, puntosHumano);
+
+			if (puntosHumano <= 7.5)
+			{
+				//Roba maquina
+				cout << endl << "Turno maquina:" << endl;
+				puntosMaquina = 0;
+				modoDmaquina(baraja, cartas, puntosHumano, cartasMaquina, puntosMaquina);
+
+				if (puntosMaquina <= 7.5)
+				{
+					if (puntosHumano == puntosMaquina && cartasHumano.cont != cartasMaquina.cont)
+					{
+						if (cartasHumano.cont < cartasMaquina.cont)
+						{
+							resultado = HUMANO;
+						}
+						else
+						{
+							resultado = MAQUINA;
+						}
+					}
+					else
+						resultado = determinaGanador(puntosHumano, puntosMaquina);
+				}
+				else resultado = HUMANO;
+			}
+			else resultado = MAQUINA;
+
+			mostrarGanador(resultado);
+
+			n_partidas_jugadas++;
+			guardarResultado(resultado, puntosHumano, puntosMaquina, cartasHumano, cartasMaquina, n_partidas_jugadas);
+			break;
+		case 0:
+			return 0;
+		default:
+			cout << "Opcion incorrecta. " << endl;
+		}
+	} while (opcion <= 2 || opcion >= 0);
+	return 0;
+}
+
+void menu()
+{
+	cout << "1. Modo A." << endl;
+	cout << "2. Modo B." << endl;
+	cout << "3. Modo C." << endl;
+	cout << "4. Modo D." << endl;
+	cout << "0. Salir. " << endl;
+	cout << "Introduce una opcion." << endl;
+}
+
+void mostrarGanador(int ganador)
+{
+	if (ganador == HUMANO)
+	{
+		cout << endl << "Has ganado!!!" << endl << endl;
+	}
+	else if (ganador == MAQUINA)
+	{
+		cout << endl << "Ha ganado la maquina." << endl << endl;
+	}
+}
+
+double modoA(ifstream & file, int numCartas)
+{
+	int cont = 0, carta;
+	double puntuacion = 0;
+	file >> carta;
+	while (cont < numCartas && puntuacion < 7.5 && !file.eof())
+	{
+		puntuacion += equivalencias(carta);
+
+		cout << "Carta sacada: " << carta << endl << "Puntuacion total: " << puntuacion << endl << endl;
+
+		cont++;
+		file >> carta;
+	}
+
+	return puntuacion;
+}
+
+//Si la carta no es valida, se devuelve 0.
+double equivalencias(int carta)
+{
+	double puntuacion = 0;
+	if (carta >= 1 && carta <= 7)
+		puntuacion = carta;
+	else if (carta >= 10 && carta <= 12)
+		puntuacion = 0.5;
+
+	return puntuacion;
+}
+
+bool cargarArchivo(ifstream &file)
+{
+	if (file.is_open())
+	{
+		file.close();
+	}
+
+	string nombreFichero;
+	cout << "Introduce el nombre del archivo: ";
+	cin >> nombreFichero;
+	file.open(nombreFichero);
+
+	return file.is_open();
+}
+
+int generarMaxCartas(int limiteInferior, int limiteSuperior)
+{
+	return int(limiteInferior + rand() % ((limiteSuperior + 1) - limiteInferior));
+}
+
+/*
+No se tiene en cuenta que alguna de las 2 puntuaciones sobrepase 7.5 pues esto debe comprobarse antes.
+Entonces, devuelve:
+	-Ganador aleatorio pues ambos tienen la misma puntuación.
+	-Humano gana por tener 7.5 puntos.
+	-Maquina gana por tener 7.5 puntos.
+	-Humano gana por estar mas cerca de 7.5 puntos que maquina.
+	-Maquina gana por estar mas cerca de 7.5 puntos que humano.
+*/
+int determinaGanador(double puntuacion_H, double puntuacion_M)
+{
+	int ganador;
+	if (puntuacion_H == puntuacion_M)
+	{
+		int resultado = rand() % 2;
+		if (resultado == 0)
+		{
+			ganador = HUMANO;
+		}
+		else
+		{
+			ganador = MAQUINA;
+		}
+	}
+	else if (puntuacion_H == 7.5)
+	{
+		ganador = HUMANO;
+	}
+	else if (puntuacion_M == 7.5)
+	{
+		ganador = MAQUINA;
+	}
+	else if (puntuacion_H > puntuacion_M)
+	{
+		ganador = HUMANO;
+	}
+	else
+	{
+		ganador = MAQUINA;
+	}
+
+	return ganador;
+}
+
+double modoBhumano(ifstream & file, int numCartas)
+{
+	int cont = 0, carta;
+	char aux;
+	double puntuacion = 0;
+	bool seguir = true;
+	file >> carta;
+	while (seguir && puntuacion < 7.5 && !file.eof())
+	{
+		puntuacion += equivalencias(carta);
+
+		cout << "Carta sacada: " << carta << endl << "Puntuacion total: " << puntuacion << endl << endl;
+
+		cont++;
+
+		if (cont < numCartas && puntuacion < 7.5)
+		{
+			cout << "Seguir? (R-Si, (Otro valor)-No) ";
+			cin >> aux;
+			if (aux == 'R' || aux == 'r')
+			{
+				seguir = true;
+			}
+			else
+			{
+				seguir = false;
+			}
+		}
+		else
+		{
+			seguir = false;
+		}
+
+		file >> carta;
+	}
+
+	return puntuacion;
+}
+
+double modoBmaquina(ifstream & file, int numCartas, double puntosHumano)
+{
+	int cont = 0, carta;
+	double puntuacion = 0;
+	bool seguir = true;
+	file >> carta;
+	while (cont < numCartas && puntuacion < 7.5 && !file.eof())
+	{
+		puntuacion += equivalencias(carta);
+
+		cout << "Carta sacada: " << carta << endl << "Puntuacion total: " << puntuacion << endl << endl;
+
+		seguir = puntuacion <= puntosHumano && puntuacion != 7.5;
+
+		cont++;
+		file >> carta;
+	}
+
+	return puntuacion;
+}
+
+void modoChumano(ifstream & file, tCartasPorAparecer cartas, double & puntos)
+{
+	int carta;
+	char aux;
+	bool seguir = true;
+	file >> carta;
+	while (seguir && puntos < 7.5 && !file.eof())
+	{
+		if (carta > 7)
+		{
+			cartas[0]--;
+		}
+		else
+		{
+			cartas[carta]--;
+		}
+
+		puntos += equivalencias(carta);
+
+		cout << "Carta sacada: " << carta << endl << "Puntuacion total: " << puntos << endl << endl;
+
+		if (puntos < 7.5)
+		{
+			cout << "Seguir? (R-Si, (Otro valor)-No) ";
+			cin >> aux;
+			if (aux == 'R' || aux == 'r')
+			{
+				seguir = true;
+			}
+			else
+			{
+				seguir = false;
+			}
+		}
+		else
+		{
+			seguir = false;
+		}
+
+		file >> carta;
+	}
+}
+
+void modoCmaquina(ifstream & file, tCartasPorAparecer cartas, double puntosHumano, double & puntos)
+{
+	int carta;
+	bool seguir = true;
+	file >> carta;
+	while (seguir && puntos < 7.5 && !file.eof())
+	{
+		if (carta > 7)
+		{
+			cartas[0]--;
+		}
+		else
+		{
+			cartas[carta]--;
+		}
+
+		puntos += equivalencias(carta);
+
+		cout << "Carta sacada: " << carta << endl << "Puntuacion total: " << puntos << endl << endl;
+		seguir = !esProbablePasarse(puntos, cartas);
+		file >> carta;
+	}
+}
+
+bool esProbablePasarse(double puntosMaquina, const tCartasPorAparecer cartas)
+{
+	int i;
+	double cartas_por_salir = 0, puntos_para_pasarse = 7.5 - puntosMaquina;
+	{
+		for (i = 0; i < TAM_CARTAS_POR_APARECER; i++)
+			cartas_por_salir += cartas[i];
+	}
+
+	if (puntos_para_pasarse == 0.5)
+	{
+		i = 0;
+	}
+	else {
+		//Al convertir double a int, redondea a la baja, por eso se suma 1.
+		i = int(puntos_para_pasarse);
+		i++;
+	}
+
+	puntos_para_pasarse = 0;
+	while (i < TAM_CARTAS_POR_APARECER)
+	{
+		puntos_para_pasarse += cartas[i];
+		i++;
+	}
+
+	return puntos_para_pasarse / cartas_por_salir > 0.5;
+}
+
+void iniciarPorAparecer(tCartasPorAparecer & cartas)
+{
+	cartas[0] = 12;
+	for (int i = 1; i < TAM_CARTAS_POR_APARECER; i++)
+	{
+		cartas[i] = 4;
+	}
+}
+
+void inicializa(tConjuntoCartas & cartas)
+{
+	cartas.cont = 0;
+}
+
+void sacar(tConjuntoCartas & cartas, int & carta)
+{
+	carta = cartas.baraja[cartas.cont - 1];
+	cartas.cont--;
+}
+
+void incluir(tConjuntoCartas & cartas, int carta)
+{
+	cartas.baraja[cartas.cont] = carta;
+	cartas.cont++;
+}
+
+/*
+Llama a la funcion cargarMazo que rellena el mazo con todas las cartas,
+despues llama a barajar para cambiar el orden de ellas.
+*/
+void crearMazo(tConjuntoCartas & mazo)
+{
+	cargarMazo(mazo);
+
+	barajar(mazo);
+}
+
+void modoDhumano(tConjuntoCartas & mazo, tCartasPorAparecer cartas, tConjuntoCartas & cartasHumano, double & puntos)
+{
+	int carta;
+	char aux;
+	bool seguir = true;
+	while (seguir && puntos < 7.5 && mazo.cont > 0)
+	{
+		sacar(mazo, carta);
+		if (carta > 7)
+		{
+			cartas[0]--;
+		}
+		else
+		{
+			cartas[carta]--;
+		}
+		incluir(cartasHumano, carta);
+		puntos += equivalencias(carta);
+
+		cout << "Cartas sacadas: ";
+		for (int i = 0; i < cartasHumano.cont; i++)
+		{
+			cout << cartasHumano.baraja[i];
+			if (i < cartasHumano.cont - 1)
+				cout << ", ";
+		}
+		cout << endl << "Puntuacion total: " << puntos << endl << endl;
+
+		if (puntos < 7.5)
+		{
+			cout << "Seguir? (R-Si, (Otro valor)-No) ";
+			cin >> aux;
+			if (aux == 'R' || aux == 'r')
+			{
+				seguir = true;
+			}
+			else
+			{
+				seguir = false;
+			}
+		}
+		else
+		{
+			seguir = false;
+		}
+	}
+}
+
+void modoDmaquina(tConjuntoCartas & mazo, tCartasPorAparecer cartas, double puntosHumano, tConjuntoCartas & cartasMaquina, double & puntos)
+{
+	int carta;
+	bool seguir = true;
+	while (seguir && puntos < 7.5 && mazo.cont > 0)
+	{
+		sacar(mazo, carta);
+		if (carta > 7)
+		{
+			cartas[0]--;
+		}
+		else
+		{
+			cartas[carta]--;
+		}
+		incluir(cartasMaquina, carta);
+		puntos += equivalencias(carta);
+
+
+
+		cout << "Cartas sacadas: ";
+		for (int i = 0; i < cartasMaquina.cont; i++)
+		{
+			cout << cartasMaquina.baraja[i];
+			if (i < cartasMaquina.cont - 1)
+				cout << ", ";
+		}
+		cout << endl << "Puntuacion total: " << puntos << endl << endl;
+
+		seguir = !esProbablePasarse(puntos, cartas);
+	}
+}
+
+void barajar(tConjuntoCartas & cartas)
+{
+	int e = 20 + rand() % 20, nAletorio, nAletorio2, aux;
+
+	for (int i = 0; i < e; i++)
+	{
+		nAletorio = rand() % TAM_MAX_BARAJA;
+		nAletorio2 = rand() % TAM_MAX_BARAJA;
+		aux = cartas.baraja[nAletorio];
+		cartas.baraja[nAletorio] = cartas.baraja[nAletorio2];
+		cartas.baraja[nAletorio2] = aux;
+	}
+}
+
+void cargarMazo(tConjuntoCartas & cartas)
+{
+	tCartasPorAparecer cartasQuedan;
+	iniciarPorAparecer(cartasQuedan);
+
+	int i, aux = 1;
+	cartas.cont = TAM_MAX_BARAJA;
+	for (i = 0; i < TAM_MAX_BARAJA; i++)
+	{
+		cartas.baraja[i] = aux;
+		if (aux == 7)
+			aux = 10;
+		else if (aux == 12)
+			aux = 1;
+		else
+			aux++;
+	}
+}
+
+void guardarResultado(int resultado, double puntosHumano, double puntosMaquina, tConjuntoCartas cartasHumano, tConjuntoCartas cartasMaquina, int partidasJugadas)
+{
+	ofstream file;
+	file.open("partida" + to_string(partidasJugadas) + ".txt");
+
+	file << "Número de partida:        // " << partidasJugadas << endl;
+	if (resultado == HUMANO)
+	{
+		file << "Ganador:                 // Humano" << endl;
+	}
+	else
+	{
+		file << "Ganador:                 // Máquina" << endl;
+	}
+	file << "Humano. Puntuación:     // " << puntosHumano << endl;
+	file << "Cartas:                // " << cartasHumano.cont << endl;
+	file << "Máquina. Puntuación:  // " << puntosMaquina << endl;
+	file << "Cartas:              // " << cartasMaquina.cont << endl;
+
+	file.close();
+}
